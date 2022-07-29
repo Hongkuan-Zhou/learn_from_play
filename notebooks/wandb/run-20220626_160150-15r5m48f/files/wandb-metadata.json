@@ -1,0 +1,24 @@
+{
+    "os": "macOS-12.3.1-x86_64-i386-64bit",
+    "python": "3.8.9",
+    "heartbeatAt": "2022-06-26T14:02:01.122664",
+    "startedAt": "2022-06-26T14:01:50.986767",
+    "docker": null,
+    "cpu_count": 16,
+    "cuda": null,
+    "args": [
+        "-f",
+        "/Users/Garen/Library/Jupyter/runtime/kernel-6f1bdf13-512e-470e-9608-9249442760b1.json"
+    ],
+    "state": "running",
+    "program": "notebooks/train_lfp.ipynb",
+    "root": "/Users/Garen/learning_from_play",
+    "git": {
+        "remote": "https://github.com/sholtodouglas/learning_from_play.git",
+        "commit": "76f42cc264607c49fe19fb21bc3ed2f1ab8fa5e0"
+    },
+    "email": "ge49wej@tum.de",
+    "host": "MacBook-Pro-2.local",
+    "username": "Garen",
+    "executable": "/Users/Garen/learning_from_play/venv/bin/python"
+}
