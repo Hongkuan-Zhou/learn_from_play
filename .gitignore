@@ -130,5 +130,7 @@ dmypy.json
 # data
 /data
 /data.*
+/wandb
+
 # saved_models
 /saved_models
