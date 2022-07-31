@@ -186,8 +186,9 @@ if args.device == 'TPU':
         tf.keras.mixed_precision.set_global_policy('mixed_bfloat16')
 else:
     physical_devices = tf.config.list_physical_devices()
+    print(physical_devices)
     if args.device == 'GPU':
-        tf.config.experimental.set_memory_growth(physical_devices[3], enable=True)
+        tf.config.experimental.set_memory_growth(physical_devices[1], enable=True)
         if args.fp16:
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
     strategy = tf.distribute.get_strategy()
@@ -256,7 +257,7 @@ while t < args.train_steps:
     inputs = dataset_coordinator.next()
     inputs['beta'] = args.beta
     r = trainer.train_step(**inputs)
-    trainer.VQ.update_codebook(r['flattened_inputs'], r['encodings'])
+    # trainer.VQ.update_codebook(r['flattened_inputs'], r['encodings'])
 
     if t % valid_inc == 0:
         inputs = dataset_coordinator.next_valid()
