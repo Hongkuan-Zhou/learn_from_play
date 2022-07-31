@@ -129,6 +129,8 @@ dmypy.json
 .pyre/
 # data
 /data
+/data.zip
+/wandb
 
 # saved_models
 /saved_models
