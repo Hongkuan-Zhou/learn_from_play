@@ -68,7 +68,7 @@ parser.add_argument('-i', '--images', default=False, action='store_true')
 parser.add_argument('-i2', '--images2', default=False, action='store_true')
 parser.add_argument('-gi', '--gripper_images', default=False, action='store_true')
 parser.add_argument('-cnn', '--cnn_type', type=str, default="spatial_softmax")
-parser.add_argument('-if', '--init_from', type=str, default="init_from")
+parser.add_argument('-if', '--init_from', type=str, default="")
 parser.add_argument('-sim', '--sim', default='Unity', help='Unity/Pybullet')
 parser.add_argument('-vq', '--discrete', default=False, action='store_true')
 parser.add_argument('--vq_ema', default=False, action='store_true')
@@ -157,7 +157,7 @@ else:
     print('Reading data from local filesystem')
     STORAGE_PATH = WORKING_PATH
 
-SAVE_PATH = Pathy(f'gs://{args.bucket_name}')
+SAVE_PATH = WORKING_PATH
 
 print(f'Storage path: {STORAGE_PATH}')
 TRAIN_DATA_PATHS = [STORAGE_PATH / 'data' / x for x in args.train_datasets]
@@ -185,9 +185,9 @@ if args.device == 'TPU':
     if args.fp16:
         tf.keras.mixed_precision.set_global_policy('mixed_bfloat16')
 else:
-    physical_devices = tf.config.list_physical_devices()
+    physical_devices = tf.config.list_physical_devices('GPU')
     if args.device == 'GPU':
-        tf.config.experimental.set_memory_growth(physical_devices[3], enable=True)
+        tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
         if args.fp16:
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
     strategy = tf.distribute.get_strategy()
@@ -255,13 +255,14 @@ while t < args.train_steps:
     trainer.update_schedules(t)
     inputs = dataset_coordinator.next()
     inputs['beta'] = args.beta
+    # print('iterations',t,' ', inputs.keys())
     r = trainer.train_step(**inputs)
-    trainer.VQ.update_codebook(r['flattened_inputs'], r['encodings'])
+    # trainer.VQ.update_codebook(r['flattened_inputs'], r['encodings'])
 
     if t % valid_inc == 0:
         inputs = dataset_coordinator.next_valid()
         inputs['beta'] = args.beta
-        trainer.train_step(**inputs)
+        trainer.test_step(**inputs)
 
         step_time = round(time.time() - start_time, 1)
 
