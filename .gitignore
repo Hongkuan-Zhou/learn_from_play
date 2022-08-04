@@ -127,6 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
 # data
 /data
 /data.*
@@ -139,3 +140,6 @@ wandb
 
 # vscode
 .vscode
+
+# others
+nohup*.out
