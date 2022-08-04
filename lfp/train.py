@@ -96,6 +96,7 @@ class LFPTrainer():
         self.lang_embed_to_goal_space = lang_embed_to_goal_space
         self.strategy = strategy
         self.args = args
+        self.beta = args.beta
         self.dl = dl
         self.global_batch_size = global_batch_size
 
@@ -121,6 +122,7 @@ class LFPTrainer():
         self.temp_schedule = cosineDecay(min_frac=1 / 16, max=args.temperature, decay_steps=20000)
 
         # bit boiler platy having them all separate, but I tried a really clean dicts+comprehensions method and the TPU complained about having non XLA functions - so it stays this way for now. 
+   
         self.actor_optimizer = optimizer(learning_rate=args.learning_rate, clipnorm=actor_clip)
         self.encoder_optimizer = optimizer(learning_rate=args.learning_rate, clipnorm=encoder_clip)
         self.planner_optimizer = optimizer(learning_rate=args.learning_rate, clipnorm=planner_clip)
@@ -517,9 +519,8 @@ class LFPTrainer():
             # therefore, to do contrastive all we need to do is chop off the first B_unlab worth, then the encodings and the sentrence embeddings will be the same length
 
     def train_step(self, **kwargs):
-        inputs, beta, lang_labelled_inputs, external_videos, bulk = kwargs['batch'], kwargs['beta'], kwargs['lang'], \
-                                                                    kwargs['video'], kwargs['bulk']
-
+        inputs, lang_labelled_inputs, external_videos, bulk = kwargs['batch'], kwargs['lang'], kwargs['video'], kwargs['bulk']
+        beta = self.beta
         if self.args.bulk_split > 0:
             inputs = {k: tf.concat([inputs[k], bulk[k]], axis=0) for k in inputs.keys()}  # combine them
 
@@ -633,9 +634,8 @@ class LFPTrainer():
         return return_dict
 
     def test_step(self, **kwargs):
-        inputs, beta, lang_labelled_inputs, external_videos = kwargs['batch'], kwargs['beta'], kwargs['lang'], kwargs[
-            'video']
-
+        inputs, lang_labelled_inputs, external_videos = kwargs['batch'], kwargs['lang'], kwargs['video']
+        beta = self.beta
         inputs = self.make_sequences_variable_length(inputs)  #
         actions, seq_lens, mask = inputs['acts'], inputs['seq_lens'], inputs['masks']
 
@@ -695,13 +695,13 @@ class LFPTrainer():
 
         return {'loss': record(loss, self.metrics['valid_loss'])}
 
-    @tf.function
+    # @tf.function
     def distributed_train_step(self, inputs):
         per_replica_losses = self.strategy.run(self.train_step, kwargs=inputs)
 
         return self.strategy.reduce(tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None)
 
-    @tf.function
+    # @tf.function
     def distributed_test_step(self, inputs):
         per_replica_losses = self.strategy.run(self.test_step, kwargs=inputs)
         return self.strategy.reduce(tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None)
@@ -753,7 +753,6 @@ def train_setup(args, dl, GLOBAL_BATCH_SIZE, strategy):
         model_params['obs_dim'] += args.gripper_img_embedding_size
     if args.images2:  # separate this from args.images because pybullet sim doens't have a gripper cam in the collected data
         model_params['obs_dim'] += args.img_embedding_size
-
     if args.gcbc:
         encoder = None
         planner = None
@@ -776,7 +775,7 @@ def train_setup(args, dl, GLOBAL_BATCH_SIZE, strategy):
 
     model_params['layer_size'] = args.actor_layer_size
     actor = lfp.model.create_actor(**model_params, gcbc=args.gcbc, num_distribs=args.num_distribs, qbits=args.qbits,
-                                   discrete=args.discrete)
+                                discrete=args.discrete)
 
     cnn, gripper_cnn, img_embed_to_goal_space, lang_embed_to_goal_space = None, None, None, None
     if args.images:
@@ -785,15 +784,15 @@ def train_setup(args, dl, GLOBAL_BATCH_SIZE, strategy):
             cnn)  # Have to do this because it is subclassed and the reshapes in the spatial softmax don't play nice with model auto build
         if args.gripper_images:  # gripper cnn is always impala style, it moves around too much
             gripper_cnn = lfp.model.CNN_DICT['impala'](dl.gripper_img_size, dl.gripper_img_size,
-                                                       embedding_size=args.gripper_img_embedding_size)
+                                                    embedding_size=args.gripper_img_embedding_size)
             lfp.utils.build_cnn(
                 gripper_cnn)  # Have to do this becasue it is subclassed and the reshapes in the spatial softmax don't play nice with model auto build
         img_embed_to_goal_space = lfp.model.create_goal_space_mapper(args.img_embedding_size, args.goal_space_dim,
-                                                                     args.goal_mapper_layer_size)
+                                                                    args.goal_mapper_layer_size)
         if args.use_language:
             lang_embed_to_goal_space = lfp.model.create_goal_space_mapper(args.sentence_embedding_size,
-                                                                          args.goal_space_dim,
-                                                                          args.goal_mapper_layer_size)
+                                                                        args.goal_space_dim,
+                                                                        args.goal_mapper_layer_size)
 
     # optimizer = tfa.optimizers.LAMB(learning_rate=args.learning_rate)
     optimizer = adam_v2.Adam

@@ -135,4 +135,7 @@ dmypy.json
 /saved_models
 
 # wandb
-/wandb
+wandb
+
+# vscode
+.vscode

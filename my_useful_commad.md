@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=7 python train_lfp.py test --train_datasets UR5 UR5_high_transition UR5_slow_gripper --test_datasets UR5_slow_gripper_test -tfr -s LOCAL -d GPU -b 32 -la 2048 -le 2048 -lp 2048 -z 256 -lr 2e-4 -B 0.01 -n 5 -t 1000000 -wmin 20 -wmax 40 -i --standard_split 32 --lang_split 0 --bulk_split 0 -enc_all -sim Pybulle

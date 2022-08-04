@@ -187,11 +187,13 @@ if args.device == 'TPU':
 else:
     physical_devices = tf.config.list_physical_devices('GPU')
     if args.device == 'GPU':
-        tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
+        for d in physical_devices:
+            tf.config.experimental.set_memory_growth(d, enable=True)
         if args.fp16:
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
-    strategy = tf.distribute.get_strategy()
     NUM_DEVICES = 1
+    strategy = tf.distribute.get_strategy()
+    
     print(physical_devices)
 
 # # Dataset
@@ -222,7 +224,6 @@ model_path = str(SAVE_PATH / 'saved_models' / args.run_name)
 
 if args.init_from != "":
     inputs = dataset_coordinator.next()
-    inputs['beta'] = args.beta
     trainer.train_step(**inputs)
     print(f"Initing from: {args.init_from}")
     trainer.load_weights(str(SAVE_PATH / 'saved_models' / args.init_from), from_checkpoint=True)
@@ -254,14 +255,12 @@ while t < args.train_steps:
     start_time = time.time()
     trainer.update_schedules(t)
     inputs = dataset_coordinator.next()
-    inputs['beta'] = args.beta
     # print('iterations',t,' ', inputs.keys())
     r = trainer.train_step(**inputs)
     # trainer.VQ.update_codebook(r['flattened_inputs'], r['encodings'])
 
     if t % valid_inc == 0:
         inputs = dataset_coordinator.next_valid()
-        inputs['beta'] = args.beta
         trainer.test_step(**inputs)
 
         step_time = round(time.time() - start_time, 1)

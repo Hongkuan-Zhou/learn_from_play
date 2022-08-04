@@ -1,0 +1,74 @@
+nohup: ignoring input
+wandb: Currently logged in as: zhking. Use `wandb login --relogin` to force relogin
+2022-08-04 19:54:29.120528: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 AVX512F FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2022-08-04 19:54:29.943029: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1532] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 30980 MB memory:  -> device: 0, name: Tesla V100-PCIE-32GB, pci bus id: 0000:b2:00.0, compute capability: 7.0
+2022-08-04 19:54:54.155314: I tensorflow/stream_executor/cuda/cuda_dnn.cc:384] Loaded cuDNN version 8100
+2022-08-04 19:54:54.645203: W tensorflow/stream_executor/gpu/asm_compiler.cc:111] *** WARNING *** You are using ptxas 9.0.176, which is older than 11.1. ptxas before 11.1 is known to miscompile XLA code, leading to incorrect results or invalid-address errors.
+
+You may not need to update to CUDA 11.1; cherry-picking the ptxas binary is often sufficient.
+/data/bing/envs/lfp/lib/python3.8/site-packages/comet_ml/connection.py:188: DeprecationWarning:
+
+Using 'method_whitelist' with Retry is deprecated and will be removed in v2.0. Use 'allowed_methods' instead
+
+Namespace(actor_layer_size=2048, batch_size=64, beta=0.01, bucket_name=None, bulk_datasets=None, bulk_split=0, cnn_type='spatial_softmax', codebook_size=32, colab=False, commit_cost=10.0, data_source='LOCAL', device='GPU', discrete=False, encode_all=True, encoder_layer_size=1024, fp16=False, from_tfrecords=True, gcbc=False, goal_mapper_layer_size=512, goal_space_dim=32, gripper_images=False, gripper_img_embedding_size=32, images=True, images2=False, img_embedding_size=64, init_from='test2', lang_split=0, latent_dim=256, learning_rate=0.0003, normalize=False, num_distribs=5, planner_layer_size=512, qbits=None, resume=False, run_name='hongkuan_zhou_test3', sentence_embedding_size=512, sim='Pybullet', standard_split=64, sub_out_language_percent=0.25, temperature=0.1, test_datasets=['UR5_slow_gripper_test'], tpu_name=None, train_datasets=['UR5', 'UR5_high_transition', 'UR5_slow_gripper'], train_steps=5000, use_contrastive=False, use_language=False, video_datasets=None, video_split=0, vq_ema=False, vq_reduction=5, window_size_max=40, window_size_min=20)
+Using local setup
+Working path: /home/bing_TUM/zhk/learn_from_play
+Ros/Pybullet not found - no issue if just training
+No pybullet installation found - which is fine if training
+Reading data from local filesystem
+Storage path: /home/bing_TUM/zhk/learn_from_play
+Tensorflow version 2.9.0
+[PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+Our dataset split is 64 specific, 0 lang, 0 video, 0 bulk
+{   'acts': TensorSpec(shape=(64, None, 7), dtype=tf.float32, name=None),
+    'dataset_path': TensorSpec(shape=(64, None), dtype=tf.int32, name=None),
+    'goals': TensorSpec(shape=(64, None, 11), dtype=tf.float32, name=None),
+    'imgs': TensorSpec(shape=(64, None, 200, 200, 3), dtype=tf.uint8, name=None),
+    'obs': TensorSpec(shape=(64, None, 18), dtype=tf.float32, name=None),
+    'proprioceptive_features': TensorSpec(shape=(64, None, 7), dtype=tf.float32, name=None),
+    'tstep_idxs': TensorSpec(shape=(64, None), dtype=tf.int32, name=None)}
+{   'acts': TensorSpec(shape=(64, None, 7), dtype=tf.float32, name=None),
+    'dataset_path': TensorSpec(shape=(64, None), dtype=tf.int32, name=None),
+    'goals': TensorSpec(shape=(64, None, 11), dtype=tf.float32, name=None),
+    'imgs': TensorSpec(shape=(64, None, 200, 200, 3), dtype=tf.uint8, name=None),
+    'obs': TensorSpec(shape=(64, None, 18), dtype=tf.float32, name=None),
+    'proprioceptive_features': TensorSpec(shape=(64, None, 7), dtype=tf.float32, name=None),
+    'tstep_idxs': TensorSpec(shape=(64, None), dtype=tf.int32, name=None)}
+{   'acts': TensorSpec(shape=(32, None, 7), dtype=tf.float32, name=None),
+    'dataset_path': TensorSpec(shape=(32, None), dtype=tf.int32, name=None),
+    'goals': TensorSpec(shape=(32, None, 11), dtype=tf.float32, name=None),
+    'imgs': TensorSpec(shape=(32, None, 200, 200, 3), dtype=tf.uint8, name=None),
+    'obs': TensorSpec(shape=(32, None, 18), dtype=tf.float32, name=None),
+    'proprioceptive_features': TensorSpec(shape=(32, None, 7), dtype=tf.float32, name=None),
+    'tstep_idxs': TensorSpec(shape=(32, None), dtype=tf.int32, name=None)}
+Initing from: test2
+COMET INFO: Experiment is live on comet.ml https://www.comet.com/sholtodouglas/learning-from-play/8dbbd01d7fa24510b8cf70a83531f724
+
+/data/bing/envs/lfp/lib/python3.8/site-packages/comet_ml/connection.py:188: DeprecationWarning:
+
+Using 'method_whitelist' with Retry is deprecated and will be removed in v2.0. Use 'allowed_methods' instead
+
+/data/bing/envs/lfp/lib/python3.8/site-packages/comet_ml/connection.py:188: DeprecationWarning:
+
+Using 'method_whitelist' with Retry is deprecated and will be removed in v2.0. Use 'allowed_methods' instead
+
+/data/bing/envs/lfp/lib/python3.8/site-packages/comet_ml/connection.py:188: DeprecationWarning:
+
+Using 'method_whitelist' with Retry is deprecated and will be removed in v2.0. Use 'allowed_methods' instead
+
+wandb: wandb version 0.13.0 is available!  To upgrade, please run:
+wandb:  $ pip install wandb --upgrade
+wandb: Tracking run with wandb version 0.12.21
+wandb: Run data is saved locally in /home/bing_TUM/zhk/learn_from_play/wandb/run-20220804_195523-vwuq2bqv
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run vibrant-durian-41
+wandb: ⭐️ View project at https://wandb.ai/zhking/learning-from-play_v2
+wandb: 🚀 View run at https://wandb.ai/zhking/learning-from-play_v2/runs/vwuq2bqv
+/data/bing/envs/lfp/lib/python3.8/site-packages/comet_ml/connection.py:188: DeprecationWarning:
+
+Using 'method_whitelist' with Retry is deprecated and will be removed in v2.0. Use 'allowed_methods' instead
+
+  20/5000 [..............................] - ETA: 3:16:25 - Train Loss: -7.3335 - Validation Loss: -20.7200 - Time (s): 10.6000  40/5000 [..............................] - ETA: 3:01:10 - Train Loss: -15.1842 - Validation Loss: -20.3417 - Time (s): 6.6000  60/5000 [..............................] - ETA: 2:52:12 - Train Loss: -17.7697 - Validation Loss: -20.2761 - Time (s): 5.2000  80/5000 [..............................] - ETA: 2:47:31 - Train Loss: -19.2054 - Validation Loss: -20.1463 - Time (s): 4.5000 100/5000 [..............................] - ETA: 2:44:08 - Train Loss: -20.1223 - Validation Loss: -20.0187 - Time (s): 4.0400 120/5000 [..............................] - ETA: 2:41:37 - Train Loss: -20.7248 - Validation Loss: -19.9854 - Time (s): 3.7833 140/5000 [..............................] - ETA: 2:40:33 - Train Loss: -21.0859 - Validation Loss: -20.0663 - Time (s): 3.5857 160/5000 [..............................] - ETA: 2:39:46 - Train Loss: -21.3026 - Validation Loss: -20.1173 - Time (s): 3.4625 180/5000 [>.............................] - ETA: 2:39:20 - Train Loss: -21.4496 - Validation Loss: -20.2110 - Time (s): 3.3667 200/5000 [>.............................] - ETA: 2:39:01 - Train Loss: -21.5244 - Validation Loss: -20.1646 - Time (s): 3.3000 220/5000 [>.............................] - ETA: 2:38:29 - Train Loss: -21.5473 - Validation Loss: -20.1463 - Time (s): 3.2273 240/5000 [>.............................] - ETA: 2:37:53 - Train Loss: -21.5825 - Validation Loss: -20.1930 - Time (s): 3.1750 260/5000 [>.............................] - ETA: 2:37:26 - Train Loss: -21.6231 - Validation Loss: -20.2421 - Time (s): 3.1154 280/5000 [>.............................] - ETA: 2:36:39 - Train Loss: -21.6852 - Validation Loss: -20.2695 - Time (s): 3.0714 300/5000 [>.............................] - ETA: 2:36:00 - Train Loss: -21.7564 - Validation Loss: -20.3298 - Time (s): 3.0400 320/5000 [>.............................] - ETA: 2:35:18 - Train Loss: -21.8500 - Validation Loss: -20.3548 - Time (s): 3.0063 340/5000 [=>............................] - ETA: 2:34:39 - Train Loss: -21.9395 - Validation Loss: -20.3395 - Time (s): 2.9706 360/5000 [=>............................] - ETA: 2:34:06 - Train Loss: -22.0158 - Validation Loss: -20.3390 - Time (s): 2.9333 380/5000 [=>............................] - ETA: 2:33:19 - Train Loss: -22.1020 - Validation Loss: -20.3294 - Time (s): 2.9158 400/5000 [=>............................] - ETA: 2:32:37 - Train Loss: -22.1694 - Validation Loss: -20.3401 - Time (s): 2.9100Killed
+/data/bing/envs/lfp/lib/python3.8/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
