@@ -250,20 +250,19 @@ from lfp.metric import log  # gets state and clears simultaneously
 
 # Autograph just
 # Creating these autograph wrappers so that tf.data operations are executed in graph mode
+start_time = time.time()
 
 while t < args.train_steps:
-    start_time = time.time()
     trainer.update_schedules(t)
     inputs = dataset_coordinator.next()
-    # print('iterations',t,' ', inputs.keys())
     r = trainer.train_step(**inputs)
     # trainer.VQ.update_codebook(r['flattened_inputs'], r['encodings'])
 
-    if t % valid_inc == 0:
+    if (t+1) % valid_inc == 0:
         inputs = dataset_coordinator.next_valid()
         trainer.test_step(**inputs)
 
-        step_time = round(time.time() - start_time, 1)
+        step_time = round((time.time() - start_time) / valid_inc, 1)
 
         metrics = {metric_name: log(metric) for metric_name, metric in trainer.metrics.items()}
         metrics['step_time'] = step_time
@@ -271,12 +270,12 @@ while t < args.train_steps:
         # validation plotting
         progbar.add(valid_inc, [('Train Loss', metrics['train_loss']),
                                 ('Validation Loss', metrics['valid_loss']),
-                                ('Time (s)', step_time)])
+                                ('Time: (s/iter)', step_time)])
         # Plot on Comet
         # experiment.log_metrics(metrics,step=t)
         # Plot on WandB
         wandb.log(metrics, step=t)
-
+        start_time = time.time()
     if (t + 0) % save_inc == 0:  # zero while we test this
         trainer.save_weights(model_path, run_id=wandb.run.id, experiment_key=experiment.get_key())
 

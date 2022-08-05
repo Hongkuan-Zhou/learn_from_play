@@ -153,7 +153,7 @@ class PlayDataloader():
                  include_imgs2=False,
                  include_gripper_imgs=False,
                  shuffle_size=None,
-                 num_workers=tf.data.experimental.AUTOTUNE,
+                 num_workers=4,
                  seed=42,
                  sim='Unity'):
 
