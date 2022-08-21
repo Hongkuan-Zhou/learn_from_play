@@ -22,7 +22,6 @@ def latent_normal(inputs):
 
 def logistic_mixture(inputs, qbits=None):
     """
-
     :param inputs:
     :param qbits: number of quantisation bits, total quantisation intervals = 2 ** qbits
     :return:
@@ -186,10 +185,10 @@ def create_planner(obs_dim, goal_dim,
 
 def create_discrete_planner(obs_dim, goal_dim,
                             layer_size=2048, latent_dim=256, epsilon=1e-4, training=True, **kwargs):
-    """
+    '''
     takes in size B, N_TILES, D for start_state and goal_state
     LSTM then predicts which discrete plan it should be for each tile
-    """
+    '''
     # params #
     batch_size = None if training else 1
     stateful = not training
@@ -264,10 +263,10 @@ def compute_mmd(x, y):
 #   Conv2D(64, 3, padding='same', activation='relu', name='features'),
 #   Flatten(),
 #   Dense(512, activation='relu'),
-#   Dense(embedding_size),  
+#   Dense(embedding_size),
 # ], name = 'feature_encoder')
 
-# # Has a cheeky 10M params but ok. This is the option which uses spatial softmax. 
+# # Has a cheeky 10M params but ok. This is the option which uses spatial softmax.
 # class cnn(tf.keras.Model):
 #     # TODO: Make height width dependent
 #     def __init__(self,  img_height=128, img_width = 128, img_channels=3, embedding_size=64):
@@ -294,7 +293,7 @@ def compute_mmd(x, y):
 
 #         # Assume features is of size [N, H, W, C] (batch_size, height, width, channels).
 #         # Transpose it to [N, C, H, W], then reshape to [N * C, H * W] to compute softmax
-#         # jointly over the image dimensions. 
+#         # jointly over the image dimensions.
 #         N, H, W, C = pre_softmax.shape
 #         pre_softmax = tf.reshape(tf.transpose(pre_softmax, [0, 3, 1, 2]), [N * C, H * W])
 #         softmax = tf.nn.softmax(pre_softmax)
@@ -305,7 +304,7 @@ def compute_mmd(x, y):
 #         return self.dense2(x)
 
 
-# Has a cheeky 10M params but ok. This is the option which uses spatial softmax. 
+# Has a cheeky 10M params but ok. This is the option which uses spatial softmax.
 
 
 class spatial_softmax_cnn(tf.keras.Model):
@@ -335,7 +334,7 @@ class spatial_softmax_cnn(tf.keras.Model):
 
         # Assume features is of size [N, H, W, C] (batch_size, height, width, channels).
         # Transpose it to [N, C, H, W], then reshape to [N * C, H * W] to compute softmax
-        # jointly over the image dimensions. 
+        # jointly over the image dimensions.
         N, H, W, C = pre_softmax.shape
         pre_softmax = tf.reshape(tf.transpose(pre_softmax, [0, 3, 1, 2]), [N * C, H * W])
         softmax = tf.nn.softmax(pre_softmax)
@@ -386,7 +385,7 @@ class intensities_spatial_softmax_cnn(tf.keras.Model):
 
         # Assume features is of size [N, H, W, C] (batch_size, height, width, channels).
         # Transpose it to [N, C, H, W], then reshape to [N * C, H * W] to compute softmax
-        # jointly over the image dimensions. 
+        # jointly over the image dimensions.
         N, H, W, C = pre_softmax.shape
         pre_softmax = tf.reshape(tf.transpose(pre_softmax, [0, 3, 1, 2]), [N * C, H * W])
         softmax = tf.nn.softmax(pre_softmax)
@@ -546,7 +545,7 @@ class PositionEmbedding(Layer):
 #     token_embeddings = Embedding(input_dim=vocab_size, output_dim=embed_dim)(seq) # embed the seq
 #     x = Concatenate(axis=-2)([goal_embed, token_embeddings])
 
-#     # 
+#     #
 #     embedding_layer = PositionEmbedding(max_len+1, embed_dim)
 #     x = embedding_layer(x)
 

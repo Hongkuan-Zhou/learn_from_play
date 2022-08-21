@@ -98,22 +98,7 @@ if args.device == 'TPU' and args.data_source == 'GCS':
     if args.bucket_name is None or args.tpu_name is None:
         parser.error('When using GCP TPUs you must specify the bucket and TPU names')
 
-# python3 notebooks/train_lfp.py \
-# tpuv3-test \
-# --train_dataset UR5 UR5_slow_gripper UR5_high_transition \
-# --test_dataset UR5_slow_gripper_test \
-# -tfr \
-# -s GCS \
-# -d TPU \
-# -b 512 \
-# -la 2048 \
-# -le 512 \
-# -lp 2048 \
-# -z 256 \
-# -lr 1e-3
-
 print(args)
-
 
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -278,7 +263,6 @@ while t < args.train_steps:
         start_time = time.time()
     if (t + 0) % save_inc == 0:  # zero while we test this
         trainer.save_weights(model_path, run_id=wandb.run.id, experiment_key=experiment.get_key())
-
         # if not args.images:
         # How we plot the cluster figs
         # try:

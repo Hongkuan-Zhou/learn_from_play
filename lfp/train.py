@@ -1,14 +1,17 @@
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
+
+from tensorflow.keras.optimizers import SGD, Adam
+from tensorflow.keras import mixed_precision
 import tensorflow_probability as tfp
-from tensorflow.python.keras import mixed_precision
-from tensorflow.python.keras.optimizers import adam_v2
 
 tfd = tfp.distributions
 tfpl = tfp.layers
 import lfp
 import os
+import wandb
+import json
 
 from lfp.metric import record, log_action_breakdown
 
@@ -85,7 +88,7 @@ class LFPTrainer():
 
     def __init__(self, args, actor, dl, encoder=None, planner=None, cnn=None, gripper_cnn=None,
                  img_embed_to_goal_space=None, lang_embed_to_goal_space=None, \
-                 optimizer=adam_v2.Adam, strategy=None, global_batch_size=32):
+                 optimizer=Adam, strategy=None, global_batch_size=32):
 
         self.actor = actor
         self.encoder = encoder
@@ -96,7 +99,6 @@ class LFPTrainer():
         self.lang_embed_to_goal_space = lang_embed_to_goal_space
         self.strategy = strategy
         self.args = args
-        self.beta = args.beta
         self.dl = dl
         self.global_batch_size = global_batch_size
 
@@ -121,8 +123,7 @@ class LFPTrainer():
         self.temperature = args.temperature
         self.temp_schedule = cosineDecay(min_frac=1 / 16, max=args.temperature, decay_steps=20000)
 
-        # bit boiler platy having them all separate, but I tried a really clean dicts+comprehensions method and the TPU complained about having non XLA functions - so it stays this way for now. 
-   
+        # bit boiler platy having them all separate, but I tried a really clean dicts+comprehensions method and the TPU complained about having non XLA functions - so it stays this way for now.
         self.actor_optimizer = optimizer(learning_rate=args.learning_rate, clipnorm=actor_clip)
         self.encoder_optimizer = optimizer(learning_rate=args.learning_rate, clipnorm=encoder_clip)
         self.planner_optimizer = optimizer(learning_rate=args.learning_rate, clipnorm=planner_clip)
@@ -221,7 +222,7 @@ class LFPTrainer():
 
     def make_sequences_variable_length(self, batch):
         '''
-        This is a rather gross tiling/casting/indexing function - but it very effectively vectorises 
+        This is a rather gross tiling/casting/indexing function - but it very effectively vectorises
         variable sequence lengths over entire batches rather than in the dataloader, which brings us within 80% of precomputed speed
         while retaining full data aug!
         '''
@@ -231,21 +232,21 @@ class LFPTrainer():
         seq_lens = tf.random.uniform(shape=[B], minval=self.args.window_size_min,
                                      maxval=self.args.window_size_max, dtype=tf.int32)
         batch['seq_lens'] = tf.cast(seq_lens, tf.float32)  # must be a float for later loss per timestep calcs
-        # Create a mask which is length variable seq lens 
+        # Create a mask which is length variable seq lens
         mask = tf.cast(tf.sequence_mask(seq_lens, maxlen=self.args.window_size_max), tf.float32)  # B,T mask
         multiply_mask = tf.expand_dims(mask, -1)  # B, T, 1 (for broadcasting)
 
         batch['masks'] = mask
         batch['obs'] *= multiply_mask
         batch['acts'] *= multiply_mask
-        # Save goals for later as it depends on whether it is imgs or not
+        # Save goals for later as it depends whether it is imgs or not
         # Get numbers 0>B to concat with the seq lens for gather_nd
         B_range = tf.range(0, B, delta=1, dtype=tf.int32, name='range')  # B
         B_indices = tf.stack([B_range, seq_lens], axis=1)  # B,2
         if self.args.images:
             # get the goals corresponding to each of the seq len ends
             batch['goal_imgs'] = tf.gather_nd(batch['imgs'], B_indices)  # B, imgheight, imgwidth, 3
-            # tile_dims = tf.constant([1, self.args.window_size_max, 1,1,1], tf.int32) 
+            # tile_dims = tf.constant([1, self.args.window_size_max, 1,1,1], tf.int32)
             # goals = tf.tile(goals, tile_dims) # B, T, imgheight, imgwidth, 3
             imgs_mask = tf.cast(multiply_mask, tf.uint8)[:, :, :, tf.newaxis,
                         tf.newaxis]  # Must be 5 dim because the imgs are B, T, H, W, C
@@ -272,7 +273,7 @@ class LFPTrainer():
     #     B,T,D = to_encode.shape
     #     to_encode = tf.reshape(to_encode, [B*self.args.vq_tiles, T//self.args.vq_tiles, D])#  [B*TILES, LEN/TILES, EMBEDDING]
 
-    #     encoding = self.encoder([to_encode]) # [B*TILES, LATENT] 
+    #     encoding = self.encoder([to_encode]) # [B*TILES, LATENT]
     #     encoding = tf.reshape(encoding[:, :, tf.newaxis], [B, self.args.vq_tiles, -1]) # B, N_TILES, LATENT - so that each tile goes through the gumbel
 
     #     z_q = tfpl.DistributionLambda(
@@ -302,9 +303,7 @@ class LFPTrainer():
         '''
         A function which wraps the shared processing between train and test step
         Maximally vectorises everything for speed's sake at the cost of some readability
-
         inputs is normal inputs without sentence labels : obs, acts, goals, imgs, proprioceptive_features, goal_imgs, mask
-
         '''
 
         indices = {'unlabelled': 0, 'labelled': 0, 'vids': 0}
@@ -315,11 +314,11 @@ class LFPTrainer():
             states, actions, goals, seq_lens, masks = inputs['obs'], inputs['acts'], inputs['goals'], inputs[
                 'seq_lens'], inputs['masks']
             indices['unlabelled'] = len(actions)
-        # We want to concatenate the normal batch, lang_labelled_batch, and external videos, so that we can pass them all through 
-        # the encoder at once, at the end, we'd like to return the langlabelled encodings(i.e encodings of lang labelled inputs and 
-        # external videos), paired with their appropriate labels so that we can use contrastive losses on them 
+        # We want to concatenate the normal batch, lang_labelled_batch, and external videos, so that we can pass them all through
+        # the encoder at once, at the end, we'd like to return the langlabelled encodings(i.e encodings of lang labelled inputs and
+        # external videos), paired with their appropriate labels so that we can use contrastive losses on them
 
-        # Get the lengths of each, store that in a dictionary of indices 
+        # Get the lengths of each, store that in a dictionary of indices
 
         # if images, concat imgs, prorpioceptive_features, goal_imgs, not gripper_imgs - that can only be used where we have action labels
 
@@ -465,10 +464,10 @@ class LFPTrainer():
                 to_encode = img_embeddings
 
             if self.args.discrete:
-                # We want to chunk up the inputs, so each seq goes from B, LEN, EMBED to 
+                # We want to chunk up the inputs, so each seq goes from B, LEN, EMBED to
                 # that way the lstm encodes little chunks of the sequence
 
-                # One option is to use gumbel, but for the moment that seems to be more unstable. 
+                # One option is to use gumbel, but for the moment that seems to be more unstable.
 
                 encoding = self.encoder([to_encode])  # [B, T, to_enc_dim]  > [B,VQ_tiles,latent_dim]
                 B, tiles, latent = encoding.shape
@@ -514,13 +513,14 @@ class LFPTrainer():
             # Additionally, for contrastive loss we need to get the encodings of the lang labelled and vids only, and their sentence embeddings
             # Then maybe randomly offset by one - layout vid lab vid, or lab vid lab? Then take positive pairs/negative pairs via distance. Ez!
             # Plot just needs the first four...? Meh it can do that itself.
-            # In the event that we did contrastive, we get out encodings which will be [b_lab + b_lab + b_vid, D] and the plans which will chase them. 
+            # In the event that we did contrastive, we get out encodings which will be [b_lab + b_lab + b_vid, D] and the plans which will chase them.
             # We'll also get indices, unlab, lab, vid
             # therefore, to do contrastive all we need to do is chop off the first B_unlab worth, then the encodings and the sentrence embeddings will be the same length
 
     def train_step(self, **kwargs):
-        inputs, lang_labelled_inputs, external_videos, bulk = kwargs['batch'], kwargs['lang'], kwargs['video'], kwargs['bulk']
-        beta = self.beta
+        inputs, beta, lang_labelled_inputs, external_videos, bulk = kwargs['batch'], kwargs['beta'], kwargs['lang'], \
+                                                                    kwargs['video'], kwargs['bulk']
+
         if self.args.bulk_split > 0:
             inputs = {k: tf.concat([inputs[k], bulk[k]], axis=0) for k in inputs.keys()}  # combine them
 
@@ -634,8 +634,9 @@ class LFPTrainer():
         return return_dict
 
     def test_step(self, **kwargs):
-        inputs, lang_labelled_inputs, external_videos = kwargs['batch'], kwargs['lang'], kwargs['video']
-        beta = self.beta
+        inputs, beta, lang_labelled_inputs, external_videos = kwargs['batch'], kwargs['beta'], kwargs['lang'], kwargs[
+            'video']
+
         inputs = self.make_sequences_variable_length(inputs)  #
         actions, seq_lens, mask = inputs['acts'], inputs['seq_lens'], inputs['masks']
 
@@ -672,12 +673,12 @@ class LFPTrainer():
                 reg_loss = record(self.compute_regularisation_loss(plan, encoding), self.metrics['valid_reg_loss'])
                 loss = act_plan_loss + reg_loss * beta
             log_action_breakdown(plan_policy, actions, mask, seq_lens, self.args.num_distribs is not None,
-                                 self.dl.quaternion_act, self.metrics['valid_position_loss'],
+                                 self.dl.quaternion_act, self.metrics['valid_position_loss'], \
                                  self.metrics['valid_max_position_loss'], self.metrics['valid_rotation_loss'],
                                  self.metrics['valid_max_rotation_loss'], self.metrics['valid_gripper_loss'],
                                  self.compute_MAE)
             log_action_breakdown(enc_policy, actions, mask, seq_lens, self.args.num_distribs is not None,
-                                 self.dl.quaternion_act, self.metrics['valid_enc_position_loss'],
+                                 self.dl.quaternion_act, self.metrics['valid_enc_position_loss'], \
                                  self.metrics['valid_enc_max_position_loss'], self.metrics['valid_enc_rotation_loss'],
                                  self.metrics['valid_enc_max_rotation_loss'], self.metrics['valid_enc_gripper_loss'],
                                  self.compute_MAE)
@@ -690,18 +691,18 @@ class LFPTrainer():
                                      self.metrics['valid_lang_position_loss'],
                                      self.metrics['valid_lang_max_position_loss'],
                                      self.metrics['valid_lang_rotation_loss'],
-                                     self.metrics['valid_lang_max_rotation_loss'],
+                                     self.metrics['valid_lang_max_rotation_loss'], \
                                      self.metrics['valid_lang_gripper_loss'], self.compute_MAE)
 
         return {'loss': record(loss, self.metrics['valid_loss'])}
 
-    # @tf.function
+    @tf.function
     def distributed_train_step(self, inputs):
         per_replica_losses = self.strategy.run(self.train_step, kwargs=inputs)
 
         return self.strategy.reduce(tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None)
 
-    # @tf.function
+    @tf.function
     def distributed_test_step(self, inputs):
         per_replica_losses = self.strategy.run(self.test_step, kwargs=inputs)
         return self.strategy.reduce(tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None)
@@ -753,6 +754,7 @@ def train_setup(args, dl, GLOBAL_BATCH_SIZE, strategy):
         model_params['obs_dim'] += args.gripper_img_embedding_size
     if args.images2:  # separate this from args.images because pybullet sim doens't have a gripper cam in the collected data
         model_params['obs_dim'] += args.img_embedding_size
+
     if args.gcbc:
         encoder = None
         planner = None
@@ -775,27 +777,28 @@ def train_setup(args, dl, GLOBAL_BATCH_SIZE, strategy):
 
     model_params['layer_size'] = args.actor_layer_size
     actor = lfp.model.create_actor(**model_params, gcbc=args.gcbc, num_distribs=args.num_distribs, qbits=args.qbits,
-                                discrete=args.discrete)
+                                   discrete=args.discrete)
 
     cnn, gripper_cnn, img_embed_to_goal_space, lang_embed_to_goal_space = None, None, None, None
     if args.images:
         cnn = lfp.model.CNN_DICT[args.cnn_type](dl.img_size, dl.img_size, embedding_size=args.img_embedding_size)
         lfp.utils.build_cnn(
-            cnn)  # Have to do this because it is subclassed and the reshapes in the spatial softmax don't play nice with model auto build
+            cnn)  # Have to do this becasue it is subclassed and the reshapes in the spatial softmax don't play nice with model auto build
         if args.gripper_images:  # gripper cnn is always impala style, it moves around too much
             gripper_cnn = lfp.model.CNN_DICT['impala'](dl.gripper_img_size, dl.gripper_img_size,
-                                                    embedding_size=args.gripper_img_embedding_size)
+                                                       embedding_size=args.gripper_img_embedding_size)
             lfp.utils.build_cnn(
                 gripper_cnn)  # Have to do this becasue it is subclassed and the reshapes in the spatial softmax don't play nice with model auto build
         img_embed_to_goal_space = lfp.model.create_goal_space_mapper(args.img_embedding_size, args.goal_space_dim,
-                                                                    args.goal_mapper_layer_size)
+                                                                     args.goal_mapper_layer_size)
         if args.use_language:
             lang_embed_to_goal_space = lfp.model.create_goal_space_mapper(args.sentence_embedding_size,
-                                                                        args.goal_space_dim,
-                                                                        args.goal_mapper_layer_size)
+                                                                          args.goal_space_dim,
+                                                                          args.goal_mapper_layer_size)
 
     # optimizer = tfa.optimizers.LAMB(learning_rate=args.learning_rate)
-    optimizer = adam_v2.Adam
+    optimizer = optimizer = tf.optimizers.Adam
     trainer = LFPTrainer(args, actor, dl, encoder, planner, cnn, gripper_cnn, img_embed_to_goal_space,
                          lang_embed_to_goal_space, optimizer, strategy, GLOBAL_BATCH_SIZE)
     return actor, encoder, planner, cnn, gripper_cnn, img_embed_to_goal_space, lang_embed_to_goal_space, trainer
+

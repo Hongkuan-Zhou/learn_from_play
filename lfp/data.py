@@ -153,7 +153,7 @@ class PlayDataloader():
                  include_imgs2=False,
                  include_gripper_imgs=False,
                  shuffle_size=None,
-                 num_workers=4,
+                 num_workers=tf.data.experimental.AUTOTUNE,
                  seed=42,
                  sim='Unity'):
 
@@ -191,7 +191,6 @@ class PlayDataloader():
 
     def extract(self, paths, from_tfrecords=False):
         """
-
         :param paths:
         :param include_imgs:
         :param from_tfrecords:
@@ -218,7 +217,6 @@ class PlayDataloader():
 
     def transform(self, dataset):
         """
-
         :param dataset:
         :return:
         """
@@ -266,7 +264,6 @@ class PlayDataloader():
     #   data once off beforehand. Todo: write a data validator
     def load(self, dataset, batch_size=None):
         """
-
         :param dataset: a tf Dataset
         :return:
         """
@@ -465,7 +462,7 @@ def serialise_vid(data):
     # # tag string
 
     # seq_lens = Feature(int64_list=Int64List(value=[seq_lens,]))
-    # masks = Feature(bytes_list=BytesList(value=[tf.io.serialize_tensor(masks).numpy(),])) 
+    # masks = Feature(bytes_list=BytesList(value=[tf.io.serialize_tensor(masks).numpy(),]))
     # imgs = Feature(bytes_list=BytesList(value=[tf.io.serialize_tensor(imgs).numpy(),]))
     # goal_imgs = Feature(bytes_list=BytesList(value=[tf.io.serialize_tensor(goal_imgs).numpy(),]))
     # label =  Feature(bytes_list=BytesList(value=[tf.io.serialize_tensor(label).numpy(),]))
@@ -519,7 +516,7 @@ def read_vid(example):
 
 ### Can use the labelled_dl with read_func = read_vid to read
 
-# create dataloader which combines the  datasets, and outputs next - makes them distributed if necessary. 
+# create dataloader which combines the  datasets, and outputs next - makes them distributed if necessary.
 # This is so we can use TFrecord speed, but get the right proportions of various datasets (e.g a bulk pretraining one for extra data diversity)
 class distributed_data_coordinator:
     # load
