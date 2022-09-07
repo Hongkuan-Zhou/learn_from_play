@@ -143,3 +143,6 @@ wandb
 
 # others
 nohup*.out
+
+# play env
+roboticsPlayroomPybullet

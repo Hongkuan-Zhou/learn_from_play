@@ -389,8 +389,7 @@ class LFPTrainer():
             B, T, H, W, C = imgs.shape
             imgs = tf.reshape(imgs, [B * T, H, W, C])
             img_embeddings = tf.reshape(self.cnn(imgs)[0], [B, T, -1])  # [B,T,D]
-            states = tf.concat([img_embeddings, proprioceptive_features],
-                               -1)  # gets both the image and it's own xyz ori and angle as pose
+            states = tf.concat([img_embeddings, proprioceptive_features], -1)  # gets both the image and it's own xyz ori and angle as pose
 
             goal_img_embeddings = self.cnn(goal_imgs)[0]  # [B,D]
             img_in_goal_space = self.img_embed_to_goal_space(goal_img_embeddings)  # B, D
@@ -493,8 +492,7 @@ class LFPTrainer():
 
 
             else:
-                plan = self.planner([states[:, 0, :], goals[:, 0,
-                                                      :]])  # the final goals are tiled out over the entire non masked sequence, so the first timestep is the final goal.
+                plan = self.planner([states[:, 0, :], goals[:, 0, :]])  # the final goals are tiled out over the entire non masked sequence, so the first timestep is the final goal.
                 encoding = self.encoder([to_encode])
                 z_enc = encoding.sample()
                 z_plan = plan.sample()

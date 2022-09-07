@@ -10,7 +10,7 @@ import imageio
 import lfp
 from tqdm import tqdm
 
-reducer = umap.UMAP(metric='cosine', random_state=42)
+reducer = umap.UMAP(metric='euclidean', random_state=42)
 
 colors_dict = {
     'press button': [1, 0, 0],  # red
@@ -162,80 +162,122 @@ def project_labelled_latents(z_embed, colors, bucket=True, figsize=(14, 14)):
 #         return_vals.append(func(*args))
 #         print(indices[i], indices[i+1])
 
+def compute_batch(batch, trainer, args, batch_type='unlabelled'):
+    full_len = len(batch[list(batch.keys())[0]])  # this may be multiple batches or a mega batch from labels
+    indices = list(np.arange(0, full_len, args.batch_size)) + [full_len]
+    encodings, plans = [], []
+    for i in tqdm(range(0, len(indices) - 1)):
+        start, stop = indices[i], indices[i + 1]
+        minibatch = {k: v[start:stop] for k, v in batch.items()}
+        if batch_type == 'unlabelled' or not args.use_language:  # if we're not using language goals, then just pass the labelled batch through the unlablled path
+            step = trainer.step(minibatch)
+            encoding, plan = step['encoding'], step['plan']
 
-# def get_latent_vectors(batch,encoder,planner,TEST_DATA_PATH, num_take, args, cnn=None, bucket=True):
+        elif batch_type == 'labelled':
+            step = trainer.step(lang_labelled_inputs=minibatch)
+            encoding, plan = step['encoding'], step['plan']
+
+        encodings.append(encoding.sample()), plans.append(plan.sample())
+    return np.vstack(encodings), np.vstack(plans)
+
+
+def get_latent_vectors(unlabelled_batch, labelled_data_path, trainer, args):
+    '''
+    Separating this out for reuse in live model display
+    '''
+    obs, acts, goals, labels, colors, paths, imgs, goal_imgs, proprioceptive_features = get_labelled_trajs(labelled_data_path, bucket=True, args=args)
+    (a, b, _) = obs.shape
+    masks = np.ones((a, b))
+    seq_lens = np.ones((a,)) * 40
+    labelled_batch = {'obs': obs, 'acts': acts, 'goals': goals, 'imgs': imgs, 'goal_imgs': goal_imgs, 'proprioceptive_features': proprioceptive_features, 'masks': masks, 'seq_lens': seq_lens}
+
+    unlabelled_colors = [[0.8, 0.8, 0.8, 0.6]] * len(unlabelled_batch['obs'])
+
+    e_unlab, p_unlab = compute_batch(unlabelled_batch, trainer, args, batch_type='unlabelled')
+    e_lab, p_lab = compute_batch(labelled_batch, trainer, args, batch_type='labelled')
+    enc, plan = np.vstack([e_lab, e_unlab]), np.vstack([p_lab, p_unlab])
+
+    return enc, plan, colors, unlabelled_colors
+
+
+# def get_latent_vectors(batch, encoder, planner, img_embed_to_goal_space, TEST_DATA_PATH, num_take, args, cnn=None, bucket=True):
 #     '''
-#     Separating this out for reuse in live model display 
+#     Separating this out for reuse in live model display
 #     '''
 #     obs, acts, goals, labels, colors, paths, imgs, goal_imgs, proprioceptive_features = get_labelled_trajs(TEST_DATA_PATH, bucket=bucket, args=args)
-#     batch_states,batch_acts, batch_goals, batch_colors = batch['obs'][:num_take, :40, :],batch['acts'][:num_take, :40, :], batch['goals'][:num_take, 0, :], [[0.8,0.8,0.8,0.6]]*num_take
-
+#     (a, b, _) = obs.shape
+#     masks = np.ones((a, b))
+#     labelled_batch = {'obs': obs, 'acts': acts, 'goals': goals, 'imgs': imgs, 'goal_imgs': goal_imgs, 'proprioceptive_features':proprioceptive_features, 'masks'}
+#
+#     batch_states, batch_acts, batch_goals, batch_colors = batch['obs'][:num_take, :40, :], batch['acts'][:num_take, :40, :], batch['goals'][:num_take, 0, :], [[0.8, 0.8, 0.8, 0.6]]*num_take
+#
 #     if args.images:
-#         batch_imgs, batch_proprioceptive_features, batch_goal_imgs = batch['imgs'][:num_take, :40, :], batch['proprioceptive_features'][:num_take, :40, :], batch['goal_imgs'][:num_take, 0, :]
-
-#         full_imgs =  np.concatenate([imgs, batch_imgs])
+#         batch_imgs, batch_proprioceptive_features, batch_goal_imgs = batch['imgs'][:num_take, :40, :], batch['proprioceptive_features'][:num_take, :40, :], batch['goal_imgs'][:num_take, ...]
+#
+#         full_imgs = np.concatenate([imgs, batch_imgs])
 #         full_proprioceptive_features = np.concatenate([proprioceptive_features, batch_proprioceptive_features])
 #         full_goal_imgs = np.concatenate([goal_imgs, batch_goal_imgs])
 #         #batch_states, batch_goals = lfp.utils.images_to_2D_features(batch_imgs, batch_proprioceptive_features, batch_goal_imgs, cnn)
 #         # do this so that we can fit it all in memory
 #         indices = list(np.arange(0, len(full_imgs), args.batch_size))+[len(full_imgs)]
-#         obs_stack, goal_stack = [],[]
+#         obs_stack, goal_stack = [], []
 #         for i in tqdm(range(0, len(indices)-1)):
 #             start, stop = indices[i], indices[i+1]
 #             obs, goals = lfp.utils.images_to_2D_features(full_imgs[start:stop], full_proprioceptive_features[start:stop], full_goal_imgs[start:stop], cnn)
 #             obs_stack.append(obs), goal_stack.append(goals)
 #         obs, goals = tf.concat(obs_stack, 0), tf.concat(goal_stack, 0)
-
+#
 #     else:
-#         obs  = np.concatenate([obs, batch_states])
+#         obs = np.concatenate([obs, batch_states])
 #         goals = np.concatenate([goals, batch_goals])
-
+#
 #     acts = np.concatenate([acts, batch_acts])
 #     initial_state = obs[:, 0, :]
-#     z_enc = encoder((obs,acts)).sample()
+#     goals = img_embed_to_goal_space(goals)
+#     z_enc = encoder(tf.concat([obs, acts], -1)).sample()
 #     z_plan = planner((initial_state, goals)).sample()
 #     return z_enc, z_plan, colors, batch_colors
 
 
-def get_latent_vectors(unlabelled_batch, labelled_batch, trainer, args):
-
-    def compute_batch(batch, trainer, args, batch_type='unlabelled'):
-        full_len = len(batch[list(batch.keys())[0]])  # this may be multiple batches or a mega batch from labels
-        indices = list(np.arange(0, full_len, args.batch_size)) + [full_len]
-        encodings, plans = [], []
-        for i in tqdm(range(0, len(indices) - 1)):
-            start, stop = indices[i], indices[i + 1]
-            minibatch = {k: v[start:stop] for k, v in batch.items()}
-            if batch_type == 'unlabelled' or not args.use_language:  # if we're not using language goals, then just pass the labelled batch through the unlablled path
-                step = trainer.step(minibatch)
-                encoding, plan = step['encoding'], step['plan']
-
-            elif batch_type == 'labelled':
-                step = trainer.step(lang_labelled_inputs=minibatch)
-                encoding, plan = step['encoding'], step['plan']
-
-            encodings.append(encoding.sample()), plans.append(plan.sample())
-        return np.vstack(encodings), np.vstack(plans)
-
-    unlabelled_colors = [[0.8, 0.8, 0.8, 0.6]] * len(unlabelled_batch['obs'])
-    colors = []
-    if labelled_batch is not None:
-        tags = [x.numpy().decode("utf-8") for x in list(labelled_batch['tags'])]
-        colors = [bucket_colors[x] for x in tags]
-        e_unlab, p_unlab = compute_batch(unlabelled_batch, trainer, args, batch_type='unlabelled')
-        e_lab, p_lab = compute_batch(labelled_batch, trainer, args, batch_type='labelled')
-        enc, plan = np.vstack([e_lab, e_unlab]), np.vstack([p_lab, p_unlab])
-    else:
-        e_unlab, p_unlab = compute_batch(unlabelled_batch, trainer, args, batch_type='unlabelled')
-        enc, plan = e_unlab, p_unlab
-
-    return enc, plan, colors, unlabelled_colors
+# def get_latent_vectors(unlabelled_batch, labelled_batch, trainer, args):
+#
+#     def compute_batch(batch, trainer, args, batch_type='unlabelled'):
+#         full_len = len(batch[list(batch.keys())[0]])  # this may be multiple batches or a mega batch from labels
+#         indices = list(np.arange(0, full_len, args.batch_size)) + [full_len]
+#         encodings, plans = [], []
+#         for i in tqdm(range(0, len(indices) - 1)):
+#             start, stop = indices[i], indices[i + 1]
+#             minibatch = {k: v[start:stop] for k, v in batch.items()}
+#             if batch_type == 'unlabelled' or not args.use_language:  # if we're not using language goals, then just pass the labelled batch through the unlablled path
+#                 step = trainer.step(minibatch)
+#                 encoding, plan = step['encoding'], step['plan']
+#
+#             elif batch_type == 'labelled':
+#                 step = trainer.step(lang_labelled_inputs=minibatch)
+#                 encoding, plan = step['encoding'], step['plan']
+#
+#             encodings.append(encoding.sample()), plans.append(plan.sample())
+#         return np.vstack(encodings), np.vstack(plans)
+#
+#     unlabelled_colors = [[0.8, 0.8, 0.8, 0.6]] * len(unlabelled_batch['obs'])
+#     colors = []
+#     if labelled_batch is not None:
+#         tags = [x.numpy().decode("utf-8") for x in list(labelled_batch['tags'])]
+#         colors = [bucket_colors[x] for x in tags]
+#         e_unlab, p_unlab = compute_batch(unlabelled_batch, trainer, args, batch_type='unlabelled')
+#         e_lab, p_lab = compute_batch(labelled_batch, trainer, args, batch_type='labelled')
+#         enc, plan = np.vstack([e_lab, e_unlab]), np.vstack([p_lab, p_unlab])
+#     else:
+#         e_unlab, p_unlab = compute_batch(unlabelled_batch, trainer, args, batch_type='unlabelled')
+#         enc, plan = e_unlab, p_unlab
+#
+#     return enc, plan, colors, unlabelled_colors
 
 
 # TODO adjust this so that language labelled can be plotted in their positions too
-def produce_cluster_fig(unlabelled_batch, labelled_batch, trainer, args, bucket=True, for_live_plotting=False):
+def produce_cluster_fig(batch, TEST_DATA_PATH, trainer, args,  bucket=True, for_live_plotting=False):
     # tile out the goal imgs here so we aren't passing as much data between devices when we use this ds for training
-    z_enc, z_plan, colors, batch_colors = get_latent_vectors(unlabelled_batch, labelled_batch, trainer, args)
+    z_enc, z_plan, colors, batch_colors = get_latent_vectors(batch, TEST_DATA_PATH, trainer, args)
     z_combined = tf.concat([z_enc, z_plan], axis=0)
     reducer.fit(z_combined)
     l = len(z_enc)

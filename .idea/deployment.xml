@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="bing_TUM@10.144.1.32:22" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="bing_TUM@10.144.1.32:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/bing_TUM/zhk/learn_from_play" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

@@ -50,7 +50,7 @@ def read_tfrecord(include_imgs=False, include_imgs2=False, include_gripper_imgs=
             'acts': tf.io.FixedLenFeature([], tf.string),  # tf.string means bytestring,
             'achieved_goals': tf.io.FixedLenFeature([], tf.string),  # tf.string means bytestring,
             'sequence_index': tf.io.FixedLenFeature([], tf.int64),
-            'sequence_id': tf.io.FixedLenFeature([], tf.int64),
+            'sequence_id': tf.io.FixedLenFeature([], tf.int64)
         }
         if include_imgs:
             LABELED_TFREC_FORMAT['img'] = tf.io.FixedLenFeature([], tf.string)  # tf.string means bytestring
@@ -74,8 +74,7 @@ def read_tfrecord(include_imgs=False, include_imgs2=False, include_gripper_imgs=
 
         output['acts'] = tf.ensure_shape(tf.io.parse_tensor(data['acts'], tf.float32), (dimensions[sim]['acts'],))
         output['sequence_index'] = tf.cast(data['sequence_index'], tf.int32)
-        output['sequence_id'] = tf.cast(data['sequence_id'],
-                                        tf.int32)  # this is meant to be 32 even though you serialize as 64
+        output['sequence_id'] = tf.cast(data['sequence_id'], tf.int32)  # this is meant to be 32 even though you serialize as 64
         if include_imgs:
             output['img'] = decode_shoulder_img(data['img'], dimensions[sim]['shoulder_img_hw'])
         if include_imgs2:
